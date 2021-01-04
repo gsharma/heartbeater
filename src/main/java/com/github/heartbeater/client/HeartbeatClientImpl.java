@@ -7,15 +7,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.heartbeater.client.HeartbeatClientException.Code;
+import com.github.heartbeater.rpc.DeregisterPeerRequest;
+import com.github.heartbeater.rpc.DeregisterPeerResponse;
 import com.github.heartbeater.rpc.HeartbeatMessage;
 import com.github.heartbeater.rpc.HeartbeatResponse;
 import com.github.heartbeater.rpc.HeartbeatServiceGrpc;
+import com.github.heartbeater.rpc.RegisterPeerRequest;
+import com.github.heartbeater.rpc.RegisterPeerResponse;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -30,11 +33,11 @@ import io.grpc.StatusRuntimeException;
 /**
  * A simple heartbeater client implementation.
  */
-public final class HeartbeatClientImpl implements HeartbeatClient {
+final class HeartbeatClientImpl implements HeartbeatClient {
     private static final Logger logger = LogManager.getLogger(HeartbeatClientImpl.class.getSimpleName());
 
     private final String identity = UUID.randomUUID().toString();
-    private final AtomicLong clientEpoch;
+    private final AtomicInteger clientEpoch;
 
     private final AtomicBoolean running;
     private final AtomicBoolean ready;
@@ -55,7 +58,7 @@ public final class HeartbeatClientImpl implements HeartbeatClient {
         this.serverPort = serverPort;
         this.serverDeadlineSeconds = serverDeadlineSeconds;
         this.workerCount = workerCount;
-        this.clientEpoch = new AtomicLong();
+        this.clientEpoch = new AtomicInteger();
     }
 
     @Override
@@ -119,13 +122,51 @@ public final class HeartbeatClientImpl implements HeartbeatClient {
     }
 
     @Override
-    public HeartbeatResponse heartbeat(HeartbeatMessage heartbeatMessage) throws HeartbeatClientException {
+    public HeartbeatResponse heartbeat(final HeartbeatMessage heartbeatMessage) throws HeartbeatClientException {
         if (!isRunning()) {
             throw new HeartbeatClientException(Code.INVALID_HEARTBEATER_CLIENT_LCM, "Invalid attempt to operate an already stopped heartbeat client");
         }
         HeartbeatResponse response = null;
         try {
             response = serviceStub.heartbeat(heartbeatMessage);
+            logger.info("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
+                    heartbeatMessage.getClientEpoch(),
+                    response.getServerId(), response.getServerEpoch());
+        } catch (Throwable problem) {
+            toHeartbeatClientException(problem);
+        }
+        return response;
+    }
+
+    @Override
+    public RegisterPeerResponse registerPeer(final RegisterPeerRequest registerPeerRequest) throws HeartbeatClientException {
+        if (!isRunning()) {
+            throw new HeartbeatClientException(Code.INVALID_HEARTBEATER_CLIENT_LCM, "Invalid attempt to operate an already stopped heartbeat client");
+        }
+        RegisterPeerResponse response = null;
+        try {
+            response = serviceStub.registerPeer(registerPeerRequest);
+            logger.info("registerPeer::[request[ip:{}, port:{}, serverId:{}, epoch:{}], response[serverId:{}, epoch:{}]]",
+                    registerPeerRequest.getPeerIp(), registerPeerRequest.getPeerPort(),
+                    registerPeerRequest.getPeerServerId(), registerPeerRequest.getPeerEpoch(),
+                    response.getServerId(), response.getServerEpoch());
+        } catch (Throwable problem) {
+            toHeartbeatClientException(problem);
+        }
+        return response;
+    }
+
+    @Override
+    public DeregisterPeerResponse deregisterPeer(final DeregisterPeerRequest deregisterPeerRequest) throws HeartbeatClientException {
+        if (!isRunning()) {
+            throw new HeartbeatClientException(Code.INVALID_HEARTBEATER_CLIENT_LCM, "Invalid attempt to operate an already stopped heartbeat client");
+        }
+        DeregisterPeerResponse response = null;
+        try {
+            response = serviceStub.deregisterPeer(deregisterPeerRequest);
+            logger.info("deregisterPeer::[serverId:{}], response[serverId:{}, epoch:{}]]",
+                    deregisterPeerRequest.getPeerServerId(),
+                    response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {
             toHeartbeatClientException(problem);
         }
