@@ -24,9 +24,15 @@ import io.grpc.stub.StreamObserver;
 public final class HeartbeatServiceImpl extends HeartbeatServiceImplBase {
     private static final Logger logger = LogManager.getLogger(HeartbeatServiceImpl.class.getSimpleName());
 
+    private final HeartbeatPersister persister;
+
     // TODO
     private String serverId = UUID.randomUUID().toString();
     private int serverEpoch = 0;
+
+    public HeartbeatServiceImpl(final HeartbeatPersister persister) {
+        this.persister = persister;
+    }
 
     @Override
     public void heartbeat(final HeartbeatMessage request,
@@ -48,34 +54,39 @@ public final class HeartbeatServiceImpl extends HeartbeatServiceImplBase {
     public void registerPeer(final RegisterPeerRequest request,
             final StreamObserver<RegisterPeerResponse> responseObserver) {
         // TODO
-        // try {
-        final String peerIp = request.getPeerIp();
-        final int peerPort = request.getPeerPort();
-        final String peerServerId = request.getPeerServerId();
+        try {
+            final String peerIp = request.getPeerIp();
+            final int peerPort = request.getPeerPort();
+            final String peerServerId = request.getPeerServerId();
 
-        final RegisterPeerResponse response = RegisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-        logger.info("registerPeer::[ip:{}, port:{}, serverId:{}]", peerIp, peerPort, peerServerId);
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-        // } catch (HeartbeatServerException heartbeatServerProblem) {
-        // responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
-        // }
+            final RegisterPeerResponse response = RegisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
+            logger.info("registerPeer::[ip:{}, port:{}, serverId:{}]", peerIp, peerPort, peerServerId);
+
+            persister.savePeer(peerServerId, peerIp, peerPort);
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (HeartbeatServerException heartbeatServerProblem) {
+            responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+        }
     }
 
     @Override
     public void deregisterPeer(final DeregisterPeerRequest request,
             final StreamObserver<DeregisterPeerResponse> responseObserver) {
-        // TODO
-        // try {
-        final String peerServerId = request.getPeerServerId();
+        try {
+            final String peerServerId = request.getPeerServerId();
 
-        final DeregisterPeerResponse response = DeregisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-        logger.info("deregisterPeer::[serverId:{}]", peerServerId);
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-        // } catch (HeartbeatServerException heartbeatServerProblem) {
-        // responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
-        // }
+            final DeregisterPeerResponse response = DeregisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
+            logger.info("deregisterPeer::[serverId:{}]", peerServerId);
+
+            persister.removePeer(peerServerId);
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (HeartbeatServerException heartbeatServerProblem) {
+            responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+        }
     }
 
     private static StatusRuntimeException toStatusRuntimeException(final HeartbeatServerException serverException) {

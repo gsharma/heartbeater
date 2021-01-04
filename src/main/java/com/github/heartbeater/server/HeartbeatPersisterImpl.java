@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
@@ -34,7 +36,7 @@ final class HeartbeatPersisterImpl implements HeartbeatPersister {
 
     // private ColumnFamilyHandle defaultCF;
     private ColumnFamilyHandle peerServerRegistry;
-    private List<ColumnFamilyHandle> peerServerHeartbeats;
+    private Map<String, ColumnFamilyHandle> peerServerHeartbeats;
 
     HeartbeatPersisterImpl() {
         this.running = new AtomicBoolean(false);
@@ -52,7 +54,7 @@ final class HeartbeatPersisterImpl implements HeartbeatPersister {
             // cleanly handle resumption cases
             Path dataStorePath = null;
             try {
-                peerServerHeartbeats = new ArrayList<>();
+                peerServerHeartbeats = new ConcurrentHashMap<>();
                 final ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
                 final List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(4);
                 columnFamilyDescriptors.add(0, new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, new ColumnFamilyOptions()));
@@ -89,7 +91,7 @@ final class HeartbeatPersisterImpl implements HeartbeatPersister {
                 ready.set(false);
                 // dataStore.dropColumnFamily(defaultCF);
                 dataStore.dropColumnFamily(peerServerRegistry);
-                for (final ColumnFamilyHandle peerServerHeartbeatCf : peerServerHeartbeats) {
+                for (final ColumnFamilyHandle peerServerHeartbeatCf : peerServerHeartbeats.values()) {
                     dataStore.dropColumnFamily(peerServerHeartbeatCf);
                 }
                 logger.info("Dropped column families: peerServerRegistry, peerServerHeartbeats");
@@ -119,14 +121,39 @@ final class HeartbeatPersisterImpl implements HeartbeatPersister {
         if (!isRunning()) {
             throw new HeartbeatServerException(Code.INVALID_HEARTBEATER_LCM, "Invalid attempt to operate an already stopped heartbeater");
         }
-        // TODO
-        // try {
-        // final byte[] serializedServerId = serverId.getBytes(StandardCharsets.UTF_8);
-        // final byte[] serializedPeerInfo = PeerInfo.serialize(peer);
-        // dataStore.put(peerServerRegistry, serializedServerId, serializedPeerInfo);
-        // } catch (RocksDBException persistenceIssue) {
-        // throw new HeartbeatServerException(Code.HEARTBEATER_PERSISTENCE_FAILURE, persistenceIssue);
-        // }
+        try {
+            if (peerServerHeartbeats.containsKey(serverId)) {
+                throw new HeartbeatServerException(Code.PEER_ALREADY_EXISTS, String.format("Peer already exists:%s", serverId));
+            }
+            final String heartbeatPeerCfName = "heartbeat-" + serverId;
+            final ColumnFamilyDescriptor heartbeatPeerCfDescriptor = new ColumnFamilyDescriptor(heartbeatPeerCfName.getBytes(StandardCharsets.UTF_8),
+                    new ColumnFamilyOptions());
+            final ColumnFamilyHandle heartbeatPeerCf = dataStore.createColumnFamily(heartbeatPeerCfDescriptor);
+            peerServerHeartbeats.put(serverId, heartbeatPeerCf);
+
+            // TODO
+            // final byte[] serializedServerId = serverId.getBytes(StandardCharsets.UTF_8);
+            // final byte[] serializedPeerInfo = PeerInfo.serialize(peer);
+            // dataStore.put(peerServerRegistry, serializedServerId, serializedPeerInfo);
+            logger.info("Saved peer::[serverId:{}, serverIp:{}, port:{}]", serverId, serverIp, port);
+        } catch (RocksDBException persistenceIssue) {
+            throw new HeartbeatServerException(Code.HEARTBEATER_PERSISTENCE_FAILURE, persistenceIssue);
+        }
+    }
+
+    @Override
+    public void removePeer(final String serverId) throws HeartbeatServerException {
+        if (!isRunning()) {
+            throw new HeartbeatServerException(Code.INVALID_HEARTBEATER_LCM, "Invalid attempt to operate an already stopped heartbeater");
+        }
+        try {
+            dataStore.dropColumnFamily(peerServerHeartbeats.get(serverId));
+            peerServerHeartbeats.remove(serverId);
+
+            logger.info("Removed peer::[serverId:{}]", serverId);
+        } catch (RocksDBException persistenceIssue) {
+            throw new HeartbeatServerException(Code.HEARTBEATER_PERSISTENCE_FAILURE, persistenceIssue);
+        }
     }
 
     @Override

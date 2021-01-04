@@ -117,7 +117,7 @@ public final class HeartbeatServer implements Lifecycle {
                                 return worker;
                             }
                         });
-                        final HeartbeatServiceImpl service = new HeartbeatServiceImpl();
+                        final HeartbeatServiceImpl service = new HeartbeatServiceImpl(persister);
                         server = NettyServerBuilder.forAddress(new InetSocketAddress(serverHost, serverPort))
                                 .addService(service).intercept(TransmitStatusRuntimeExceptionInterceptor.instance()).executor(serverExecutor).build();
                         server.start();

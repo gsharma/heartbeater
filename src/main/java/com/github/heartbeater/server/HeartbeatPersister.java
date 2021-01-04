@@ -7,6 +7,8 @@ public interface HeartbeatPersister extends Lifecycle {
 
     void findPeer(final String serverId) throws HeartbeatServerException;
 
+    void removePeer(final String serverId) throws HeartbeatServerException;
+
     static HeartbeatPersister getPersister() {
         return new HeartbeatPersisterImpl();
     }

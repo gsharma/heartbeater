@@ -38,6 +38,8 @@ public final class HeartbeatServerException extends Exception {
         HEARTBEATER_TINI_FAILURE("Failed to cleanly shutdown the heartbeater"),
         // 5.
         HEARTBEATER_INVALID_ARG("Invalid arguments passed"),
+        // 6.
+        PEER_ALREADY_EXISTS("Peer already exists"),
         // n.
         UNKNOWN_FAILURE(
                 "Heartbeater internal failure. Check exception stacktrace for more details of the failure");
