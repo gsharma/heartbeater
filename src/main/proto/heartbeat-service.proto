@@ -5,9 +5,13 @@ option java_multiple_files = true;
 package com.github.heartbeater.rpc;
 
 message HeartbeatMessage {
+  string clientId = 1;
+  int64 clientEpoch = 2;
 }
 
 message HeartbeatResponse {
+  string serverId = 1;
+  int64 serverEpoch = 2;
 }
 
 service HeartbeatService {
