@@ -39,6 +39,8 @@ public final class HeartbeatServer implements Lifecycle {
     private Thread serverThread;
     private ThreadPoolExecutor serverExecutor;
 
+    private HeartbeatPersister persister;
+
     private HeartbeatServer(final String serverHost, final int serverPort, final int workerCount) {
         this.serverHost = serverHost;
         this.serverPort = serverPort;
@@ -101,6 +103,9 @@ public final class HeartbeatServer implements Lifecycle {
                     final long startMillis = System.currentTimeMillis();
                     logger.info("Starting HeartbeatServer [{}] at port {}", getIdentity(), serverPort);
                     try {
+                        persister = HeartbeatPersister.getPersister();
+                        persister.start();
+
                         serverExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(workerCount, new ThreadFactory() {
                             private final AtomicInteger threadIter = new AtomicInteger();
                             private final String threadNamePattern = "heartbeat-server-%d";
@@ -143,6 +148,9 @@ public final class HeartbeatServer implements Lifecycle {
         logger.info("Stopping HeartbeatServer [{}]", getIdentity());
         if (running.compareAndSet(true, false)) {
             ready.set(false);
+            if (persister.isRunning()) {
+                persister.stop();
+            }
             if (!server.isTerminated()) {
                 server.shutdown();
                 server.awaitTermination(2L, TimeUnit.SECONDS);

@@ -19,7 +19,6 @@ message RegisterPeerRequest {
   string peerServerId = 1;
   string peerIp = 2;
   int32 peerPort = 3;
-  int32 peerEpoch = 4;
 }
 
 message RegisterPeerResponse {

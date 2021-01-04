@@ -83,11 +83,10 @@ public final class HeartbeatIntegrationTest {
 
         final String peerIp = "127.0.0.1";
         final int peerPort = 3131;
-        final int peerEpoch = 0;
         final String peerServerId = UUID.randomUUID().toString();
 
         final RegisterPeerRequest registerPeerRequest = RegisterPeerRequest.newBuilder().setPeerIp(peerIp).setPeerPort(peerPort)
-                .setPeerEpoch(peerEpoch).setPeerServerId(peerServerId).build();
+                .setPeerServerId(peerServerId).build();
         final RegisterPeerResponse registerPeerResponse = client.registerPeer(registerPeerRequest);
         assertNotNull(registerPeerResponse.getServerId());
 

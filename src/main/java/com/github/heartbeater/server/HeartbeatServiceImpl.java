@@ -51,11 +51,10 @@ public final class HeartbeatServiceImpl extends HeartbeatServiceImplBase {
         // try {
         final String peerIp = request.getPeerIp();
         final int peerPort = request.getPeerPort();
-        final int peerEpoch = request.getPeerEpoch();
         final String peerServerId = request.getPeerServerId();
 
         final RegisterPeerResponse response = RegisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-        logger.info("registerPeer::[ip:{}, port:{}, serverId:{}, epoch:{}]", peerIp, peerPort, peerServerId, peerEpoch);
+        logger.info("registerPeer::[ip:{}, port:{}, serverId:{}]", peerIp, peerPort, peerServerId);
         responseObserver.onNext(response);
         responseObserver.onCompleted();
         // } catch (HeartbeatServerException heartbeatServerProblem) {

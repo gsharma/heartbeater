@@ -146,9 +146,9 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         RegisterPeerResponse response = null;
         try {
             response = serviceStub.registerPeer(registerPeerRequest);
-            logger.info("registerPeer::[request[ip:{}, port:{}, serverId:{}, epoch:{}], response[serverId:{}, epoch:{}]]",
+            logger.info("registerPeer::[request[ip:{}, port:{}, serverId:{}], response[serverId:{}, epoch:{}]]",
                     registerPeerRequest.getPeerIp(), registerPeerRequest.getPeerPort(),
-                    registerPeerRequest.getPeerServerId(), registerPeerRequest.getPeerEpoch(),
+                    registerPeerRequest.getPeerServerId(),
                     response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {
             toHeartbeatClientException(problem);
