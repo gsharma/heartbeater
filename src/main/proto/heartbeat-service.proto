@@ -16,8 +16,8 @@ message HeartbeatResponse {
 }
 
 message RegisterPeerRequest {
-  string peerServerId = 1;
-  string peerIp = 2;
+  string peerId = 1;
+  string peerHost = 2;
   int32 peerPort = 3;
 }
 
@@ -27,7 +27,7 @@ message RegisterPeerResponse {
 }
 
 message DeregisterPeerRequest {
-  string peerServerId = 1;
+  string peerId = 1;
 }
 
 message DeregisterPeerResponse {

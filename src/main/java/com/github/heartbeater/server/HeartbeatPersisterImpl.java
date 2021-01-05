@@ -23,6 +23,9 @@ import org.rocksdb.RocksDBException;
 
 import com.github.heartbeater.server.HeartbeatServerException.Code;
 
+/**
+ * Core object responsible for all persistence-related activities for heartbeat server.
+ */
 final class HeartbeatPersisterImpl implements HeartbeatPersister {
     private static final Logger logger = LogManager.getLogger(HeartbeatPersisterImpl.class.getSimpleName());
 

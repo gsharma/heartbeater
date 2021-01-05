@@ -39,7 +39,7 @@ public final class HeartbeatServer implements Lifecycle {
     private Thread serverThread;
     private ThreadPoolExecutor serverExecutor;
 
-    private HeartbeatPersister persister;
+    private HeartbeatServiceImpl service;
 
     private HeartbeatServer(final String serverHost, final int serverPort, final int workerCount) {
         this.serverHost = serverHost;
@@ -100,12 +100,9 @@ public final class HeartbeatServer implements Lifecycle {
 
                 @Override
                 public void run() {
-                    final long startMillis = System.currentTimeMillis();
-                    logger.info("Starting HeartbeatServer [{}] at port {}", getIdentity(), serverPort);
+                    final long startNanos = System.nanoTime();
+                    logger.debug("Starting HeartbeatServer [{}] at port {}", getIdentity(), serverPort);
                     try {
-                        persister = HeartbeatPersister.getPersister();
-                        persister.start();
-
                         serverExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(workerCount, new ThreadFactory() {
                             private final AtomicInteger threadIter = new AtomicInteger();
                             private final String threadNamePattern = "heartbeat-server-%d";
@@ -117,17 +114,19 @@ public final class HeartbeatServer implements Lifecycle {
                                 return worker;
                             }
                         });
-                        final HeartbeatServiceImpl service = new HeartbeatServiceImpl(persister);
+                        service = new HeartbeatServiceImpl();
+                        service.start();
+
                         server = NettyServerBuilder.forAddress(new InetSocketAddress(serverHost, serverPort))
                                 .addService(service).intercept(TransmitStatusRuntimeExceptionInterceptor.instance()).executor(serverExecutor).build();
                         server.start();
                         serverReadyLatch.countDown();
                         logger.info("Started HeartbeatServer [{}] at port {} in {} millis", getIdentity(), serverPort,
-                                (System.currentTimeMillis() - startMillis));
+                                TimeUnit.MILLISECONDS.convert(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS));
                         server.awaitTermination();
                     } catch (Exception serverProblem) {
                         logger.error("Failed to start HeartbeatServer [{}] at port {} in {} millis", getIdentity(), serverPort,
-                                (System.currentTimeMillis() - startMillis), serverProblem);
+                                TimeUnit.MILLISECONDS.convert(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS), serverProblem);
                     }
                 }
             };
@@ -144,13 +143,11 @@ public final class HeartbeatServer implements Lifecycle {
 
     @Override
     public void stop() throws Exception {
-        final long startMillis = System.currentTimeMillis();
+        final long startNanos = System.nanoTime();
         logger.info("Stopping HeartbeatServer [{}]", getIdentity());
         if (running.compareAndSet(true, false)) {
             ready.set(false);
-            if (persister.isRunning()) {
-                persister.stop();
-            }
+            // first stop the listeners
             if (!server.isTerminated()) {
                 server.shutdown();
                 server.awaitTermination(2L, TimeUnit.SECONDS);
@@ -163,7 +160,11 @@ public final class HeartbeatServer implements Lifecycle {
                 serverExecutor.shutdownNow();
                 logger.info("Stopped heartbeat server worker threads");
             }
-            logger.info("Stopped HeartbeatServer [{}] in {} millis", getIdentity(), (System.currentTimeMillis() - startMillis));
+            if (service.isRunning()) {
+                service.stop();
+            }
+            logger.info("Stopped HeartbeatServer [{}] in {} millis", getIdentity(),
+                    TimeUnit.MILLISECONDS.convert(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS));
         } else {
             logger.error("Invalid attempt to stop an already stopped HeartbeatServer");
         }

@@ -146,9 +146,9 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         RegisterPeerResponse response = null;
         try {
             response = serviceStub.registerPeer(registerPeerRequest);
-            logger.info("registerPeer::[request[ip:{}, port:{}, serverId:{}], response[serverId:{}, epoch:{}]]",
-                    registerPeerRequest.getPeerIp(), registerPeerRequest.getPeerPort(),
-                    registerPeerRequest.getPeerServerId(),
+            logger.info("registerPeer::[request[host:{}, port:{}, id:{}], response[serverId:{}, epoch:{}]]",
+                    registerPeerRequest.getPeerHost(), registerPeerRequest.getPeerPort(),
+                    registerPeerRequest.getPeerId(),
                     response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {
             toHeartbeatClientException(problem);
@@ -164,8 +164,8 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         DeregisterPeerResponse response = null;
         try {
             response = serviceStub.deregisterPeer(deregisterPeerRequest);
-            logger.info("deregisterPeer::[serverId:{}], response[serverId:{}, epoch:{}]]",
-                    deregisterPeerRequest.getPeerServerId(),
+            logger.info("deregisterPeer::[peerId:{}], response[serverId:{}, epoch:{}]]",
+                    deregisterPeerRequest.getPeerId(),
                     response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {
             toHeartbeatClientException(problem);
