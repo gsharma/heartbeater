@@ -12,11 +12,12 @@ import com.github.heartbeater.rpc.RegisterPeerResponse;
  * Client interface for the heartbeater.
  */
 public interface HeartbeatClient extends Lifecycle {
-    HeartbeatResponse heartbeat(final HeartbeatMessage heartbeatMessage) throws HeartbeatClientException;
 
     RegisterPeerResponse registerPeer(final RegisterPeerRequest registerPeerRequest) throws HeartbeatClientException;
 
     DeregisterPeerResponse deregisterPeer(final DeregisterPeerRequest deregisterPeerRequest) throws HeartbeatClientException;
+
+    HeartbeatResponse heartbeat(final HeartbeatMessage heartbeatMessage) throws HeartbeatClientException;
 
     static HeartbeatClient getClient(final String serverHost, final int serverPort, final long serverDeadlineSeconds, final int workerCount) {
         return new HeartbeatClientImpl(serverHost, serverPort, serverDeadlineSeconds, workerCount);
