@@ -50,54 +50,44 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
         this.serverEpoch = serverEpoch;
     }
 
-    private final static class Heartbeat {
-        private long receivedTstamp;
-        private int clientEpoch;
-    }
-
     @Override
     public void heartbeat(final HeartbeatMessage request,
             final StreamObserver<HeartbeatResponse> responseObserver) {
-        // TODO
-        // try {
-        final String clientId = request.getClientId();
-        Set<Heartbeat> heartbeats = null;
-        if (heartbeatsReceived.containsKey(clientId)) {
-            heartbeats = heartbeatsReceived.get(clientId);
-        } else {
-            final int heartbeatsToKeep = 50;
-            heartbeats = Collections.newSetFromMap(new LinkedHashMap<Heartbeat, Boolean>() {
-                private static final long serialVersionUID = 1L;
+        try {
+            final String clientId = request.getClientId();
+            Set<Heartbeat> heartbeats = heartbeatsReceived.get(clientId);
+            if (heartbeats == null) {
+                final int heartbeatsToKeep = 50;
+                heartbeats = Collections.newSetFromMap(new LinkedHashMap<Heartbeat, Boolean>() {
+                    private static final long serialVersionUID = 1L;
 
-                @Override
-                public boolean removeEldestEntry(final Map.Entry<Heartbeat, Boolean> eldest) {
-                    final boolean removalCheckPassed = size() > heartbeatsToKeep;
-                    // if (removalCheckPassed) {
-                    // logger.info("LRU trimming heartbeats for {} to {}", clientId, heartbeatsToKeep);
-                    // }
-                    return removalCheckPassed;
-                }
-            });
-            heartbeatsReceived.put(clientId, heartbeats);
+                    @Override
+                    public boolean removeEldestEntry(final Map.Entry<Heartbeat, Boolean> eldest) {
+                        final boolean removalCheckPassed = size() > heartbeatsToKeep;
+                        // if (removalCheckPassed) {
+                        // logger.info("LRU trimming heartbeats for {} to {}", clientId, heartbeatsToKeep);
+                        // }
+                        return removalCheckPassed;
+                    }
+                });
+                logger.info("Setting up to receive first heartbeat for {}", clientId);
+                heartbeatsReceived.putIfAbsent(clientId, heartbeats);
+            }
+
+            final int clientEpoch = request.getClientEpoch();
+            final long receivedTstamp = Instant.now().toEpochMilli();
+
+            // TODO: persist: <receivedTstamp, clientEpoch> to heartbeat-<clientId>
+            logger.debug("Persisting [{},{}] to heartbeat-{}", receivedTstamp, clientEpoch, clientId);
+            heartbeats.add(new Heartbeat(receivedTstamp, clientEpoch));
+
+            final HeartbeatResponse response = HeartbeatResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
+            logger.debug("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", clientId, clientEpoch, serverId, serverEpoch);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception heartbeatServerProblem) {
+            responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
         }
-
-        final int clientEpoch = request.getClientEpoch();
-        final long receivedTstamp = Instant.now().toEpochMilli();
-
-        // TODO: persist: <receivedTstamp, clientEpoch> to heartbeat-<clientId>
-        logger.info("Persisting [{},{}] to heartbeat-{}", receivedTstamp, clientEpoch, clientId);
-        final Heartbeat heartbeat = new Heartbeat();
-        heartbeat.receivedTstamp = receivedTstamp;
-        heartbeat.clientEpoch = clientEpoch;
-        heartbeats.add(heartbeat);
-
-        final HeartbeatResponse response = HeartbeatResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-        logger.debug("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", clientId, clientEpoch, serverId, serverEpoch);
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
-        // } catch (HeartbeatServerException heartbeatServerProblem) {
-        // responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
-        // }
     }
 
     @Override
@@ -168,7 +158,7 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
         }
     }
 
-    private static StatusRuntimeException toStatusRuntimeException(final HeartbeatServerException serverException) {
+    private static StatusRuntimeException toStatusRuntimeException(final Exception serverException) {
         return new StatusRuntimeException(Status.fromCode(Code.INTERNAL).withCause(serverException).withDescription(serverException.getMessage()));
     }
 
@@ -203,6 +193,9 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
                 persister.stop();
             }
             heartbeatWorkers.clear();
+            for (final Set<Heartbeat> heartbeats : heartbeatsReceived.values()) {
+                heartbeats.clear();
+            }
             heartbeatsReceived.clear();
 
             logger.info("Stopped HeartbeatService [{}]", serverId);
@@ -214,6 +207,17 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
     @Override
     public boolean isRunning() {
         return running.get();
+    }
+
+    // a simple heartbeat struct
+    private final static class Heartbeat {
+        private final long receivedTstamp;
+        private final int clientEpoch;
+
+        private Heartbeat(final long receivedTstamp, final int clientEpoch) {
+            this.receivedTstamp = receivedTstamp;
+            this.clientEpoch = clientEpoch;
+        }
     }
 
 }
