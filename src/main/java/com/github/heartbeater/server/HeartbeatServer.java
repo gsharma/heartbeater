@@ -34,6 +34,7 @@ public final class HeartbeatServer implements Lifecycle {
     private final String serverHost;
     private final int serverPort;
     private final int workerCount;
+    private final int serverEpoch;
 
     private Server server;
     private Thread serverThread;
@@ -41,16 +42,18 @@ public final class HeartbeatServer implements Lifecycle {
 
     private HeartbeatServiceImpl service;
 
-    private HeartbeatServer(final String serverHost, final int serverPort, final int workerCount) {
+    private HeartbeatServer(final String serverHost, final int serverPort, final int workerCount, final int serverEpoch) {
         this.serverHost = serverHost;
         this.serverPort = serverPort;
         this.workerCount = workerCount;
+        this.serverEpoch = serverEpoch;
     }
 
     public final static class HeartbeatServerBuilder {
         private String serverHost;
-        private int serverPort;
-        private int workerCount;
+        private int serverPort = Integer.MIN_VALUE;
+        private int workerCount = Integer.MIN_VALUE;
+        private int serverEpoch = Integer.MIN_VALUE;
 
         public static HeartbeatServerBuilder newBuilder() {
             return new HeartbeatServerBuilder();
@@ -71,12 +74,18 @@ public final class HeartbeatServer implements Lifecycle {
             return this;
         }
 
+        public HeartbeatServerBuilder serverEpoch(final int serverEpoch) {
+            this.serverEpoch = serverEpoch;
+            return this;
+        }
+
         public HeartbeatServer build() throws HeartbeatServerException {
-            if (serverHost == null || serverPort == 0 || workerCount == 0) {
+            if (serverHost == null || serverHost.trim().isEmpty() || serverPort == Integer.MIN_VALUE || workerCount == Integer.MIN_VALUE
+                    || serverEpoch == Integer.MIN_VALUE) {
                 throw new HeartbeatServerException(Code.HEARTBEATER_INIT_FAILURE,
-                        "serverHost, serverPort, workerCount all need to be specified");
+                        "serverHost, serverPort, workerCount, serverEpoch all need to be specified");
             }
-            return new HeartbeatServer(serverHost, serverPort, workerCount);
+            return new HeartbeatServer(serverHost, serverPort, workerCount, serverEpoch);
         }
 
         private HeartbeatServerBuilder() {
@@ -103,7 +112,7 @@ public final class HeartbeatServer implements Lifecycle {
                     final long startNanos = System.nanoTime();
                     logger.debug("Starting HeartbeatServer [{}] at port {}", getIdentity(), serverPort);
                     try {
-                        service = new HeartbeatServiceImpl();
+                        service = new HeartbeatServiceImpl(identity, serverEpoch);
                         service.start();
 
                         serverExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(workerCount, new ThreadFactory() {

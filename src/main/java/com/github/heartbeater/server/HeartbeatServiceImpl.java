@@ -1,10 +1,13 @@
 package com.github.heartbeater.server;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,13 +36,23 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
 
     private HeartbeatPersister persister;
 
-    // TODO
-    private String serverId = UUID.randomUUID().toString();
-    private int serverEpoch = 0;
+    private final String serverId;
+    private final int serverEpoch;
 
     private Map<String, HeartbeatWorker> heartbeatWorkers;
 
-    HeartbeatServiceImpl() {
+    private Map<String, Set<Heartbeat>> heartbeatsReceived;
+
+    private final ReentrantReadWriteLock peerEditLock = new ReentrantReadWriteLock(true);
+
+    HeartbeatServiceImpl(final String serverId, final int serverEpoch) {
+        this.serverId = serverId;
+        this.serverEpoch = serverEpoch;
+    }
+
+    private final static class Heartbeat {
+        private long receivedTstamp;
+        private int clientEpoch;
     }
 
     @Override
@@ -47,12 +60,37 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
             final StreamObserver<HeartbeatResponse> responseObserver) {
         // TODO
         // try {
-        final int clientEpoch = request.getClientEpoch();
         final String clientId = request.getClientId();
+        Set<Heartbeat> heartbeats = null;
+        if (heartbeatsReceived.containsKey(clientId)) {
+            heartbeats = heartbeatsReceived.get(clientId);
+        } else {
+            final int heartbeatsToKeep = 50;
+            heartbeats = Collections.newSetFromMap(new LinkedHashMap<Heartbeat, Boolean>() {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public boolean removeEldestEntry(final Map.Entry<Heartbeat, Boolean> eldest) {
+                    final boolean removalCheckPassed = size() > heartbeatsToKeep;
+                    // if (removalCheckPassed) {
+                    // logger.info("LRU trimming heartbeats for {} to {}", clientId, heartbeatsToKeep);
+                    // }
+                    return removalCheckPassed;
+                }
+            });
+            heartbeatsReceived.put(clientId, heartbeats);
+        }
+
+        final int clientEpoch = request.getClientEpoch();
         final long receivedTstamp = Instant.now().toEpochMilli();
-        
+
         // TODO: persist: <receivedTstamp, clientEpoch> to heartbeat-<clientId>
-        
+        logger.info("Persisting [{},{}] to heartbeat-{}", receivedTstamp, clientEpoch, clientId);
+        final Heartbeat heartbeat = new Heartbeat();
+        heartbeat.receivedTstamp = receivedTstamp;
+        heartbeat.clientEpoch = clientEpoch;
+        heartbeats.add(heartbeat);
+
         final HeartbeatResponse response = HeartbeatResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
         logger.debug("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", clientId, clientEpoch, serverId, serverEpoch);
         responseObserver.onNext(response);
@@ -65,46 +103,68 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
     @Override
     public void registerPeer(final RegisterPeerRequest request,
             final StreamObserver<RegisterPeerResponse> responseObserver) {
-        // TODO
-        try {
-            final String peerHost = request.getPeerHost();
-            final int peerPort = request.getPeerPort();
-            final String peerServerId = request.getPeerId();
+        if (peerEditLock.writeLock().tryLock()) {
+            try {
+                final String peerHost = request.getPeerHost();
+                final int peerPort = request.getPeerPort();
+                final String peerServerId = request.getPeerId();
+                final int heartbeatFreqMillis = request.getHeartbeatFreqMillis();
 
-            final RegisterPeerResponse response = RegisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-            logger.info("registerPeer::[host:{}, port:{}, serverId:{}]", peerHost, peerPort, peerServerId);
+                if (!heartbeatWorkers.containsKey(peerServerId)) {
+                    persister.savePeer(peerServerId, peerHost, peerPort);
 
-            persister.savePeer(peerServerId, peerHost, peerPort);
+                    final long runIntervalMillis = Math.max(heartbeatFreqMillis, 5L);
+                    final HeartbeatWorker heartbeatWorker = new HeartbeatWorker(serverId, serverEpoch, runIntervalMillis, peerHost, peerPort);
+                    heartbeatWorkers.put(peerServerId, heartbeatWorker);
+                } else {
+                    logger.warn("{} is an already registered peer", peerServerId);
+                }
 
-            final long runIntervalMillis = 100L;
-            final HeartbeatWorker heartbeatWorker = new HeartbeatWorker(serverId, serverEpoch, runIntervalMillis, peerHost, peerPort);
-            heartbeatWorkers.put(peerServerId, heartbeatWorker);
+                final RegisterPeerResponse response = RegisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
+                logger.info("registerPeer::[host:{}, port:{}, serverId:{}]", peerHost, peerPort, peerServerId);
 
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
-        } catch (HeartbeatServerException heartbeatServerProblem) {
-            responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (HeartbeatServerException heartbeatServerProblem) {
+                responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+            } finally {
+                peerEditLock.writeLock().unlock();
+            }
+        } else {
+            logger.warn("Failed to acquire peerEditLock for registerPeer");
+            // TODO: responseObserver.onError(null);
         }
     }
 
     @Override
     public void deregisterPeer(final DeregisterPeerRequest request,
             final StreamObserver<DeregisterPeerResponse> responseObserver) {
-        try {
-            final String peerServerId = request.getPeerId();
+        if (peerEditLock.writeLock().tryLock()) {
+            try {
+                final String peerServerId = request.getPeerId();
 
-            final DeregisterPeerResponse response = DeregisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
-            logger.info("deregisterPeer::[peerId:{}]", peerServerId);
+                if (heartbeatWorkers.containsKey(peerServerId)) {
+                    persister.removePeer(peerServerId);
 
-            persister.removePeer(peerServerId);
+                    final HeartbeatWorker heartbeatWorker = heartbeatWorkers.remove(peerServerId);
+                    heartbeatWorker.interrupt();
+                } else {
+                    logger.warn("{} is not a registered peer", peerServerId);
+                }
 
-            final HeartbeatWorker heartbeatWorker = heartbeatWorkers.remove(peerServerId);
-            heartbeatWorker.interrupt();
+                final DeregisterPeerResponse response = DeregisterPeerResponse.newBuilder().setServerId(serverId).setServerEpoch(serverEpoch).build();
+                logger.info("deregisterPeer::[peerId:{}]", peerServerId);
 
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
-        } catch (HeartbeatServerException heartbeatServerProblem) {
-            responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (HeartbeatServerException heartbeatServerProblem) {
+                responseObserver.onError(toStatusRuntimeException(heartbeatServerProblem));
+            } finally {
+                peerEditLock.writeLock().unlock();
+            }
+        } else {
+            logger.warn("Failed to acquire peerEditLock for deregisterPeer");
+            // TODO: responseObserver.onError(null);
         }
     }
 
@@ -123,7 +183,8 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
             persister = HeartbeatPersister.getPersister();
             persister.start();
 
-            this.heartbeatWorkers = new ConcurrentHashMap<>();
+            heartbeatWorkers = new ConcurrentHashMap<>();
+            heartbeatsReceived = new ConcurrentHashMap<>();
 
             logger.info("Started HeartbeatService [{}]", serverId);
         } else {
@@ -141,6 +202,9 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
             if (persister.isRunning()) {
                 persister.stop();
             }
+            heartbeatWorkers.clear();
+            heartbeatsReceived.clear();
+
             logger.info("Stopped HeartbeatService [{}]", serverId);
         } else {
             logger.error("Invalid attempt to stop an already stopped HeartbeatService");

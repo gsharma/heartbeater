@@ -48,10 +48,10 @@ public final class HeartbeatIntegrationTest {
         final long serverDeadlineSeconds = 1L;
         final int serverWorkerCount = 1;
         final int clientWorkerCount = 1;
+        final int serverEpoch = 0;
 
         final HeartbeatServer server = HeartbeatServerBuilder.newBuilder().serverHost(serverHost).serverPort(serverPort)
-                .workerCount(serverWorkerCount)
-                .build();
+                .workerCount(serverWorkerCount).serverEpoch(serverEpoch).build();
         server.start();
         assertTrue(server.isRunning());
 
@@ -70,7 +70,7 @@ public final class HeartbeatIntegrationTest {
         final String peerServerId = UUID.randomUUID().toString();
 
         final RegisterPeerRequest registerPeerRequest = RegisterPeerRequest.newBuilder().setPeerHost(peerHost).setPeerPort(peerPort)
-                .setPeerId(peerServerId).build();
+                .setPeerId(peerServerId).setHeartbeatFreqMillis(100).build();
         final RegisterPeerResponse registerPeerResponse = client.registerPeer(registerPeerRequest);
         assertNotNull(registerPeerResponse.getServerId());
 
@@ -96,10 +96,10 @@ public final class HeartbeatIntegrationTest {
         final long serverOneDeadlineSeconds = 1L;
         final int serverOneWorkerCount = 1;
         final int clientOneWorkerCount = 1;
+        final int serverOneEpoch = 2;
 
         final HeartbeatServer serverOne = HeartbeatServerBuilder.newBuilder().serverHost(serverOneHost).serverPort(serverOnePort)
-                .workerCount(serverOneWorkerCount)
-                .build();
+                .workerCount(serverOneWorkerCount).serverEpoch(serverOneEpoch).build();
         serverOne.start();
         assertTrue(serverOne.isRunning());
 
@@ -114,10 +114,10 @@ public final class HeartbeatIntegrationTest {
         final long serverTwoDeadlineSeconds = 1L;
         final int serverTwoWorkerCount = 1;
         final int clientTwoWorkerCount = 1;
+        final int serverTwoEpoch = 3;
 
         final HeartbeatServer serverTwo = HeartbeatServerBuilder.newBuilder().serverHost(serverTwoHost).serverPort(serverTwoPort)
-                .workerCount(serverTwoWorkerCount)
-                .build();
+                .workerCount(serverTwoWorkerCount).serverEpoch(serverTwoEpoch).build();
         serverTwo.start();
         assertTrue(serverTwo.isRunning());
 
@@ -128,17 +128,17 @@ public final class HeartbeatIntegrationTest {
 
         // 5. call registerPeer(serverTwo) on clientOne of serverOne: serverOne->serverTwo heartbeating starts
         final RegisterPeerRequest registerPeerTwoWithServerOneRequest = RegisterPeerRequest.newBuilder().setPeerHost(serverTwoHost)
-                .setPeerPort(serverTwoPort).setPeerId(serverTwo.getIdentity()).build();
+                .setPeerPort(serverTwoPort).setPeerId(serverTwo.getIdentity()).setHeartbeatFreqMillis(5).build();
         final RegisterPeerResponse registerPeerTwoWithServerOneResponse = clientOne.registerPeer(registerPeerTwoWithServerOneRequest);
         assertNotNull(registerPeerTwoWithServerOneResponse);
 
         // 6. call registerPeer(serverOne) on clientTwo of serverTwo: serverTwo->serverOne heartbeating starts
         final RegisterPeerRequest registerPeerOneWithServerTwoRequest = RegisterPeerRequest.newBuilder().setPeerHost(serverOneHost)
-                .setPeerPort(serverOnePort).setPeerId(serverOne.getIdentity()).build();
+                .setPeerPort(serverOnePort).setPeerId(serverOne.getIdentity()).setHeartbeatFreqMillis(5).build();
         final RegisterPeerResponse registerPeerOneWithServerTwoResponse = clientTwo.registerPeer(registerPeerOneWithServerTwoRequest);
         assertNotNull(registerPeerOneWithServerTwoResponse);
 
-        LockSupport.parkNanos(TimeUnit.NANOSECONDS.convert(500L, TimeUnit.MILLISECONDS));
+        LockSupport.parkNanos(TimeUnit.NANOSECONDS.convert(100L, TimeUnit.MILLISECONDS));
 
         // 7. call deregisterPeer(serverTwo) on clientOne of serverOne: serverOne->serverTwo heartbeating stops
         final DeregisterPeerRequest deregisterPeerTwoWithServerOneRequest = DeregisterPeerRequest.newBuilder()

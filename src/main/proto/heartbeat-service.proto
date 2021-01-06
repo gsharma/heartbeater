@@ -19,6 +19,7 @@ message RegisterPeerRequest {
   string peerId = 1;
   string peerHost = 2;
   int32 peerPort = 3;
+  int32 heartbeatFreqMillis = 4;
 }
 
 message RegisterPeerResponse {
