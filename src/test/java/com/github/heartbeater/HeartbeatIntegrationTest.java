@@ -1,9 +1,9 @@
 package com.github.heartbeater;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.UUID;
@@ -12,8 +12,8 @@ import java.util.concurrent.locks.LockSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import com.github.heartbeater.client.HeartbeatClient;
 import com.github.heartbeater.rpc.DeregisterPeerRequest;
@@ -40,7 +40,7 @@ public final class HeartbeatIntegrationTest {
         });
     }
 
-    @Ignore
+    @Disabled
     @Test
     public void testSimulatedHeartbeat() throws Exception {
         final String serverHost = "127.0.0.1";

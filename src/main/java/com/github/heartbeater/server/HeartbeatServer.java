@@ -103,6 +103,9 @@ public final class HeartbeatServer implements Lifecycle {
                     final long startNanos = System.nanoTime();
                     logger.debug("Starting HeartbeatServer [{}] at port {}", getIdentity(), serverPort);
                     try {
+                        service = new HeartbeatServiceImpl();
+                        service.start();
+
                         serverExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(workerCount, new ThreadFactory() {
                             private final AtomicInteger threadIter = new AtomicInteger();
                             private final String threadNamePattern = "heartbeat-server-%d";
@@ -114,8 +117,6 @@ public final class HeartbeatServer implements Lifecycle {
                                 return worker;
                             }
                         });
-                        service = new HeartbeatServiceImpl();
-                        service.start();
 
                         server = NettyServerBuilder.forAddress(new InetSocketAddress(serverHost, serverPort))
                                 .addService(service).intercept(TransmitStatusRuntimeExceptionInterceptor.instance()).executor(serverExecutor).build();
