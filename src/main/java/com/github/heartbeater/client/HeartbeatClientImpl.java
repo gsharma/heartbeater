@@ -48,6 +48,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
     private final int workerCount;
 
     private ManagedChannel channel;
+    // private HeartbeatServiceGrpc.HeartbeatServiceStub serviceStub;
     private HeartbeatServiceGrpc.HeartbeatServiceBlockingStub serviceStub;
     private ThreadPoolExecutor clientExecutor;
 
@@ -86,6 +87,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
                     .intercept(deadlineInterceptor)
                     .userAgent("heartbeat-client").build();
             serviceStub = HeartbeatServiceGrpc.newBlockingStub(channel).withWaitForReady();
+            // serviceStub = HeartbeatServiceGrpc.newStub(channel).withWaitForReady();
             ready.set(true);
             logger.info("Started HeartbeatClient [{}]", getIdentity());
         }
@@ -96,8 +98,10 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         if (running.compareAndSet(true, false)) {
             try {
                 ready.set(false);
-                channel.shutdownNow().awaitTermination(1L, TimeUnit.SECONDS);
-                channel.shutdown();
+                if (!channel.isTerminated()) {
+                    channel.shutdownNow().awaitTermination(1L, TimeUnit.SECONDS);
+                    channel.shutdown();
+                }
                 if (clientExecutor != null && !clientExecutor.isTerminated()) {
                     clientExecutor.shutdown();
                     clientExecutor.awaitTermination(2L, TimeUnit.SECONDS);

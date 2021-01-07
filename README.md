@@ -101,3 +101,6 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
       }
   }
 ```
+
+## Persistence
+Heartbeater uses rocksdb as a local cache for persistence of its peer registry.
