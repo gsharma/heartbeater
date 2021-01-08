@@ -40,54 +40,6 @@ public final class HeartbeatIntegrationTest {
         });
     }
 
-    @Disabled
-    @Test
-    public void testSimulatedHeartbeat() throws Exception {
-        final String serverHost = "127.0.0.1";
-        final int serverPort = 8181;
-        final long serverDeadlineSeconds = 1L;
-        final int serverWorkerCount = 1;
-        final int clientWorkerCount = 1;
-        final int serverEpoch = 0;
-
-        final HeartbeatServer server = HeartbeatServerBuilder.newBuilder().serverHost(serverHost).serverPort(serverPort)
-                .workerCount(serverWorkerCount).serverEpoch(serverEpoch).build();
-        server.start();
-        assertTrue(server.isRunning());
-
-        final HeartbeatClient client = HeartbeatClient.getClient(serverHost, serverPort, serverDeadlineSeconds, clientWorkerCount);
-        client.start();
-        assertTrue(client.isRunning());
-
-        final int clientEpoch = 0;
-        final HeartbeatMessage heartbeatRequest = HeartbeatMessage.newBuilder().setClientEpoch(clientEpoch).setClientId(client.getIdentity()).build();
-        final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatRequest);
-        assertNotNull(heartbeatResponse.getServerId());
-        assertEquals(clientEpoch, heartbeatResponse.getServerEpoch());
-
-        final String peerHost = "127.0.0.1";
-        final int peerPort = 3131;
-        final String peerServerId = UUID.randomUUID().toString();
-
-        final RegisterPeerRequest registerPeerRequest = RegisterPeerRequest.newBuilder().setPeerHost(peerHost).setPeerPort(peerPort)
-                .setPeerId(peerServerId).setHeartbeatFreqMillis(100).build();
-        final RegisterPeerResponse registerPeerResponse = client.registerPeer(registerPeerRequest);
-        assertNotNull(registerPeerResponse.getServerId());
-
-        final DeregisterPeerRequest deregisterPeerRequest = DeregisterPeerRequest.newBuilder().setPeerId(peerServerId).build();
-        final DeregisterPeerResponse deregisterPeerResponse = client.deregisterPeer(deregisterPeerRequest);
-        assertNotNull(deregisterPeerResponse.getServerId());
-
-        if (client != null) {
-            client.stop();
-            assertFalse(client.isRunning());
-        }
-        if (server != null) {
-            server.stop();
-            assertFalse(server.isRunning());
-        }
-    }
-
     @Test
     public void test2ServerHeartbeating() throws Exception {
         HeartbeatServer serverOne = null;
@@ -176,6 +128,138 @@ public final class HeartbeatIntegrationTest {
             if (serverTwo != null) {
                 serverTwo.stop();
                 assertFalse(serverTwo.isRunning());
+            }
+        }
+    }
+
+    @Test
+    public void testLeaderFollowerHeartbeats() throws Exception {
+        HeartbeatServer leaderServer = null;
+        HeartbeatServer followerServerOne = null;
+        HeartbeatServer followerServerTwo = null;
+        HeartbeatServer followerServerThree = null;
+        HeartbeatClient clientToLeader = null;
+        try {
+            // 1. setup and start leaderServer: leaderServer is alive
+            final String leaderServerHost = "127.0.0.1";
+            final int leaderServerPort = 8181;
+            final long leaderServerDeadlineSeconds = 1L;
+            final int leaderServerWorkerCount = 1;
+            final int leaderServerEpoch = 5;
+
+            leaderServer = HeartbeatServerBuilder.newBuilder().serverHost(leaderServerHost).serverPort(leaderServerPort)
+                    .workerCount(leaderServerWorkerCount).serverEpoch(leaderServerEpoch).build();
+            leaderServer.start();
+            assertTrue(leaderServer.isRunning());
+
+            // 2. setup and start followerServerOne: followerServerOne is alive
+            final String followerServerOneHost = "127.0.0.1";
+            final int followerServerOnePort = 7001;
+            final long followerServerOneDeadlineSeconds = 1L;
+            final int followerServerOneWorkerCount = 1;
+            final int followerServerOneEpoch = 1;
+
+            followerServerOne = HeartbeatServerBuilder.newBuilder().serverHost(followerServerOneHost).serverPort(followerServerOnePort)
+                    .workerCount(followerServerOneWorkerCount).serverEpoch(followerServerOneEpoch).build();
+            followerServerOne.start();
+            assertTrue(followerServerOne.isRunning());
+
+            // 3. setup and start followerServerTwo: followerServerTwo is alive
+            final String followerServerTwoHost = "127.0.0.1";
+            final int followerServerTwoPort = 7002;
+            final long followerServerTwoDeadlineSeconds = 1L;
+            final int followerServerTwoWorkerCount = 1;
+            final int followerServerTwoEpoch = 2;
+
+            followerServerTwo = HeartbeatServerBuilder.newBuilder().serverHost(followerServerTwoHost).serverPort(followerServerTwoPort)
+                    .workerCount(followerServerTwoWorkerCount).serverEpoch(followerServerTwoEpoch).build();
+            followerServerTwo.start();
+            assertTrue(followerServerTwo.isRunning());
+
+            // 4. setup and start followerServerThree: followerServerThree is alive
+            final String followerServerThreeHost = "127.0.0.1";
+            final int followerServerThreePort = 7003;
+            final long followerServerThreeDeadlineSeconds = 1L;
+            final int followerServerThreeWorkerCount = 1;
+            final int followerServerThreeEpoch = 3;
+
+            followerServerThree = HeartbeatServerBuilder.newBuilder().serverHost(followerServerThreeHost).serverPort(followerServerThreePort)
+                    .workerCount(followerServerThreeWorkerCount).serverEpoch(followerServerThreeEpoch).build();
+            followerServerThree.start();
+            assertTrue(followerServerThree.isRunning());
+
+            // 5. setup and start clientToLeader: clientToLeader is alive
+            clientToLeader = HeartbeatClient.getClient(leaderServerHost, leaderServerPort, leaderServerDeadlineSeconds, 1);
+            clientToLeader.start();
+            assertTrue(clientToLeader.isRunning());
+
+            final int heartbeatFreqMillis = 5;
+
+            // 6. call registerPeer(followerServerOne) on clientToLeader of leaderServer: leaderServer->followerServerOne heartbeating starts
+            final RegisterPeerRequest registerFollowerOneWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerOneHost)
+                    .setPeerPort(followerServerOnePort).setPeerId(followerServerOne.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+                    .build();
+            final RegisterPeerResponse registerFollowerOneWithLeaderResponse = clientToLeader.registerPeer(registerFollowerOneWithLeaderRequest);
+            assertNotNull(registerFollowerOneWithLeaderResponse);
+
+            // 7. call registerPeer(followerServerTwo) on clientToLeader of leaderServer: leaderServer->followerServerTwo heartbeating starts
+            final RegisterPeerRequest registerFollowerTwoWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerTwoHost)
+                    .setPeerPort(followerServerTwoPort).setPeerId(followerServerTwo.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+                    .build();
+            final RegisterPeerResponse registerFollowerTwoWithLeaderResponse = clientToLeader.registerPeer(registerFollowerTwoWithLeaderRequest);
+            assertNotNull(registerFollowerTwoWithLeaderResponse);
+
+            // 8. call registerPeer(followerServerThree) on clientToLeader of leaderServer: leaderServer->followerServerThree heartbeating starts
+            final RegisterPeerRequest registerFollowerThreeWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerThreeHost)
+                    .setPeerPort(followerServerThreePort).setPeerId(followerServerThree.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+                    .build();
+            final RegisterPeerResponse registerFollowerThreeWithLeaderResponse = clientToLeader.registerPeer(registerFollowerThreeWithLeaderRequest);
+            assertNotNull(registerFollowerThreeWithLeaderResponse);
+
+            // 9. wait for a few heartbeats to go through
+            LockSupport.parkNanos(TimeUnit.NANOSECONDS.convert(heartbeatFreqMillis * 20, TimeUnit.MILLISECONDS));
+
+            // 10. call deregisterPeer(followerServerOne) on clientToLeader of leaderServer: leaderServer->followerServerOne heartbeating stops
+            final DeregisterPeerRequest deregisterFollowerOneWithLeaderRequest = DeregisterPeerRequest.newBuilder()
+                    .setPeerId(followerServerOne.getIdentity()).build();
+            final DeregisterPeerResponse deregisterFollowerOneWithLeaderResponse = clientToLeader
+                    .deregisterPeer(deregisterFollowerOneWithLeaderRequest);
+            assertNotNull(deregisterFollowerOneWithLeaderResponse);
+
+            // 11. call deregisterPeer(followerServerTwo) on clientToLeader of leaderServer: leaderServer->followerServerTwo heartbeating stops
+            final DeregisterPeerRequest deregisterFollowerTwoWithLeaderRequest = DeregisterPeerRequest.newBuilder()
+                    .setPeerId(followerServerTwo.getIdentity()).build();
+            final DeregisterPeerResponse deregisterFollowerTwoWithLeaderResponse = clientToLeader
+                    .deregisterPeer(deregisterFollowerTwoWithLeaderRequest);
+            assertNotNull(deregisterFollowerTwoWithLeaderResponse);
+
+            // 12. call deregisterPeer(followerServerThree) on clientToLeader of leaderServer: leaderServer->followerServerThree heartbeating stops
+            final DeregisterPeerRequest deregisterFollowerThreeWithLeaderRequest = DeregisterPeerRequest.newBuilder()
+                    .setPeerId(followerServerThree.getIdentity()).build();
+            final DeregisterPeerResponse deregisterFollowerThreeWithLeaderResponse = clientToLeader
+                    .deregisterPeer(deregisterFollowerThreeWithLeaderRequest);
+            assertNotNull(deregisterFollowerThreeWithLeaderResponse);
+        } finally {
+            // n. shut e'thing down
+            if (clientToLeader != null) {
+                clientToLeader.stop();
+                assertFalse(clientToLeader.isRunning());
+            }
+            if (leaderServer != null) {
+                leaderServer.stop();
+                assertFalse(leaderServer.isRunning());
+            }
+            if (followerServerOne != null) {
+                followerServerOne.stop();
+                assertFalse(followerServerOne.isRunning());
+            }
+            if (followerServerTwo != null) {
+                followerServerTwo.stop();
+                assertFalse(followerServerTwo.isRunning());
+            }
+            if (followerServerThree != null) {
+                followerServerThree.stop();
+                assertFalse(followerServerThree.isRunning());
             }
         }
     }
