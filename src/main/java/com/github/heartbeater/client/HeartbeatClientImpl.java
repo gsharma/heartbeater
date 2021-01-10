@@ -133,7 +133,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         HeartbeatResponse response = null;
         try {
             response = serviceStub.heartbeat(heartbeatMessage);
-            logger.info("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
+            logger.debug("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                     heartbeatMessage.getClientEpoch(),
                     response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {
@@ -150,7 +150,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         RegisterPeerResponse response = null;
         try {
             response = serviceStub.registerPeer(registerPeerRequest);
-            logger.info("registerPeer::[request[host:{}, port:{}, id:{}], response[serverId:{}, epoch:{}]]",
+            logger.debug("registerPeer::[request[host:{}, port:{}, id:{}], response[serverId:{}, epoch:{}]]",
                     registerPeerRequest.getPeerHost(), registerPeerRequest.getPeerPort(),
                     registerPeerRequest.getPeerId(),
                     response.getServerId(), response.getServerEpoch());
@@ -168,7 +168,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         DeregisterPeerResponse response = null;
         try {
             response = serviceStub.deregisterPeer(deregisterPeerRequest);
-            logger.info("deregisterPeer::[peerId:{}], response[serverId:{}, epoch:{}]]",
+            logger.debug("deregisterPeer::[peerId:{}], response[serverId:{}, epoch:{}]]",
                     deregisterPeerRequest.getPeerId(),
                     response.getServerId(), response.getServerEpoch());
         } catch (Throwable problem) {

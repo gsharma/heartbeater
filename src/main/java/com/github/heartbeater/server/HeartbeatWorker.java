@@ -64,12 +64,17 @@ final class HeartbeatWorker extends Thread {
         while (!isInterrupted()) {
             try {
                 try {
-                    final HeartbeatMessage heartbeatRequest = HeartbeatMessage.newBuilder().setClientEpoch(serverEpoch).setClientId(serverId).build();
-                    final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatRequest);
+                    final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(serverEpoch).setClientId(serverId).build();
+                    final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatMessage);
+                    logger.info("heartbeat::[request[id:{}, epoch:{}], response[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
+                            heartbeatMessage.getClientEpoch(),
+                            heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
                     heartbeatCounter++;
-                } catch (HeartbeatClientException heartbeatClientProblem) {
+                } catch (final HeartbeatClientException heartbeatClientProblem) {
                     // TODO
                     logger.error(heartbeatClientProblem);
+                } catch (Throwable heartbeatProblem) {
+                    logger.error(heartbeatProblem);
                 }
                 sleep(runIntervalMillis);
             } catch (InterruptedException interrupted) {
