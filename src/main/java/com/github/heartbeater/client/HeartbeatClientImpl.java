@@ -44,7 +44,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
 
     private final String serverHost;
     private final int serverPort;
-    private final long serverDeadlineSeconds;
+    private final int serverDeadlineMillis;
     private final int workerCount;
 
     private ManagedChannel channel;
@@ -52,12 +52,12 @@ final class HeartbeatClientImpl implements HeartbeatClient {
     private HeartbeatServiceGrpc.HeartbeatServiceBlockingStub serviceStub;
     private ThreadPoolExecutor clientExecutor;
 
-    HeartbeatClientImpl(final String serverHost, final int serverPort, final long serverDeadlineSeconds, final int workerCount) {
+    HeartbeatClientImpl(final String serverHost, final int serverPort, final int serverDeadlineMillis, final int workerCount) {
         this.running = new AtomicBoolean(false);
         this.ready = new AtomicBoolean(false);
         this.serverHost = serverHost;
         this.serverPort = serverPort;
-        this.serverDeadlineSeconds = serverDeadlineSeconds;
+        this.serverDeadlineMillis = serverDeadlineMillis;
         this.workerCount = workerCount;
         this.clientEpoch = new AtomicInteger();
     }
@@ -79,7 +79,7 @@ final class HeartbeatClientImpl implements HeartbeatClient {
                 public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
                         final MethodDescriptor<ReqT, RespT> method, final CallOptions callOptions, final Channel next) {
                     logger.debug("Intercepted {}", method.getFullMethodName());
-                    return next.newCall(method, callOptions.withDeadlineAfter(serverDeadlineSeconds, TimeUnit.SECONDS));
+                    return next.newCall(method, callOptions.withDeadlineAfter(serverDeadlineMillis, TimeUnit.MILLISECONDS));
                 }
             };
             channel = ManagedChannelBuilder.forAddress(serverHost, serverPort).usePlaintext()

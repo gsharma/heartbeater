@@ -6,7 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.heartbeater.client.HeartbeatClient;
-import com.github.heartbeater.client.HeartbeatClientException;
 import com.github.heartbeater.rpc.HeartbeatMessage;
 import com.github.heartbeater.rpc.HeartbeatResponse;
 
@@ -26,9 +25,10 @@ final class HeartbeatWorker extends Thread {
     private final int peerPort;
     private final HeartbeatClient client;
 
-    private long heartbeatCounter;
+    private long heartbeatSuccesses, heartbeatFailures;
 
-    HeartbeatWorker(final String serverId, final int serverEpoch, final long runIntervalMillis, final String peerHost, final int peerPort) {
+    HeartbeatWorker(final String serverId, final int serverEpoch, final long runIntervalMillis, final String peerHost, final int peerPort,
+            final int serverDeadlineMillis) {
         setDaemon(true);
         setName("heartbeater-" + identity);
         this.serverId = serverId;
@@ -38,9 +38,8 @@ final class HeartbeatWorker extends Thread {
         this.peerHost = peerHost;
         this.peerPort = peerPort;
 
-        final long serverDeadlineSeconds = 1L;
         final int clientWorkerCount = 1;
-        client = HeartbeatClient.getClient(peerHost, peerPort, serverDeadlineSeconds, clientWorkerCount);
+        client = HeartbeatClient.getClient(peerHost, peerPort, serverDeadlineMillis, clientWorkerCount);
 
         start();
     }
@@ -63,18 +62,20 @@ final class HeartbeatWorker extends Thread {
         logger.info("Started HeartbeatWorker [{}]", identity);
         while (!isInterrupted()) {
             try {
+                int clientEpoch = 0;
+                String clientId = null;
                 try {
-                    final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(serverEpoch).setClientId(serverId).build();
+                    clientEpoch = serverEpoch;
+                    clientId = serverId;
+                    final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(clientEpoch).setClientId(clientId).build();
                     final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatMessage);
                     logger.info("heartbeat::[request[id:{}, epoch:{}], response[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                             heartbeatMessage.getClientEpoch(),
                             heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
-                    heartbeatCounter++;
-                } catch (final HeartbeatClientException heartbeatClientProblem) {
-                    // TODO
-                    logger.error(heartbeatClientProblem);
+                    heartbeatSuccesses++;
                 } catch (Throwable heartbeatProblem) {
-                    logger.error(heartbeatProblem);
+                    logger.error("heartbeat::[request[id:{}, epoch:{}], response[{}]]", clientId, clientEpoch, heartbeatProblem);
+                    heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);
             } catch (InterruptedException interrupted) {
@@ -89,7 +90,7 @@ final class HeartbeatWorker extends Thread {
                 logger.error("Failed to stop heartbeat client", heartbeatClientProblem);
             }
         }
-        logger.info("Stopped HeartbeatWorker [{}], heartbeatCounter:{} ", identity, heartbeatCounter);
+        logger.info("Stopped HeartbeatWorker [{}], heartbeats::[successes:{}, failures:{}]", identity, heartbeatSuccesses, heartbeatFailures);
     }
 
 }

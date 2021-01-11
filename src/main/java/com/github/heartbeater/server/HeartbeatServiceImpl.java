@@ -77,6 +77,12 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
             final int clientEpoch = request.getClientEpoch();
             final long receivedTstamp = Instant.now().toEpochMilli();
 
+            // only for testing
+            if (System.getProperty("heartbeatservice.expireheartbeatdeadline").equals("true")) {
+                logger.info("Block heartbeat service::[id:{}]", serverId);
+                Thread.sleep(300L);
+            }
+
             // TODO: persist: <receivedTstamp, clientEpoch> to heartbeat-<clientId>
             logger.debug("Persisting [{},{}] to heartbeat-{}", receivedTstamp, clientEpoch, clientId);
             heartbeats.add(new Heartbeat(receivedTstamp, clientEpoch));
@@ -99,12 +105,14 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
                 final int peerPort = request.getPeerPort();
                 final String peerServerId = request.getPeerId();
                 final int heartbeatFreqMillis = request.getHeartbeatFreqMillis();
+                final int serverDeadlineMillis = heartbeatFreqMillis * 2;
 
                 if (!heartbeatWorkers.containsKey(peerServerId)) {
                     persister.savePeer(peerServerId, peerHost, peerPort);
 
                     final long runIntervalMillis = Math.max(heartbeatFreqMillis, 5L);
-                    final HeartbeatWorker heartbeatWorker = new HeartbeatWorker(serverId, serverEpoch, runIntervalMillis, peerHost, peerPort);
+                    final HeartbeatWorker heartbeatWorker = new HeartbeatWorker(serverId, serverEpoch, runIntervalMillis, peerHost, peerPort,
+                            serverDeadlineMillis);
                     heartbeatWorkers.put(peerServerId, heartbeatWorker);
                 } else {
                     logger.warn("{} is an already registered peer", peerServerId);

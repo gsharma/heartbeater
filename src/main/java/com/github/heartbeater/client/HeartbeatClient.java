@@ -19,8 +19,8 @@ public interface HeartbeatClient extends Lifecycle {
 
     HeartbeatResponse heartbeat(final HeartbeatMessage heartbeatMessage) throws HeartbeatClientException;
 
-    static HeartbeatClient getClient(final String serverHost, final int serverPort, final long serverDeadlineSeconds, final int workerCount) {
-        return new HeartbeatClientImpl(serverHost, serverPort, serverDeadlineSeconds, workerCount);
+    static HeartbeatClient getClient(final String serverHost, final int serverPort, final int serverDeadlineMillis, final int workerCount) {
+        return new HeartbeatClientImpl(serverHost, serverPort, serverDeadlineMillis, workerCount);
     }
 
 }
