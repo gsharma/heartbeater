@@ -9,7 +9,7 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
 
     HeartbeatResponse heartbeat(final HeartbeatMessage heartbeatMessage) throws HeartbeatClientException;
 
-    static HeartbeatClient getClient(final String serverHost, final int serverPort, final long serverDeadlineSeconds, final int workerCount);
+    static HeartbeatClient getClient(final String serverHost, final int serverPort, final int serverDeadlineMillis, final int workerCount);
 ```
 
 ## Usage Example
@@ -22,7 +22,7 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
       // 1. setup and start serverOne; check that serverOne is alive
       final String serverOneHost = "127.0.0.1";
       final int serverOnePort = 8181;
-      final long serverOneDeadlineSeconds = 1L;
+      final int serverOneDeadlineMillis = 500;
       final int serverOneWorkerCount = 1;
       final int clientOneWorkerCount = 1;
       final int serverOneEpoch = 2;
@@ -32,14 +32,14 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
       assertTrue(serverOne.isRunning());
 
       // 2. setup and start clientOne; check that clientOne is alive
-      clientOne = HeartbeatClient.getClient(serverOneHost, serverOnePort, serverOneDeadlineSeconds, clientOneWorkerCount);
+      clientOne = HeartbeatClient.getClient(serverOneHost, serverOnePort, serverOneDeadlineMillis, clientOneWorkerCount);
       clientOne.start();
       assertTrue(clientOne.isRunning());
 
       // 3. setup and start serverTwo; check that serverTwo is alive
       final String serverTwoHost = "127.0.0.1";
       final int serverTwoPort = 8484;
-      final long serverTwoDeadlineSeconds = 1L;
+      final int serverTwoDeadlineMillis = 500L;
       final int serverTwoWorkerCount = 1;
       final int clientTwoWorkerCount = 1;
       final int serverTwoEpoch = 3;
@@ -49,7 +49,7 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
       assertTrue(serverTwo.isRunning());
 
       // 4. setup and start clientTwo; check that clientTwo is alive
-      clientTwo = HeartbeatClient.getClient(serverTwoHost, serverTwoPort, serverTwoDeadlineSeconds, clientTwoWorkerCount);
+      clientTwo = HeartbeatClient.getClient(serverTwoHost, serverTwoPort, serverTwoDeadlineMillis, clientTwoWorkerCount);
       clientTwo.start();
       assertTrue(clientTwo.isRunning());
 
