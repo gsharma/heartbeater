@@ -62,19 +62,20 @@ final class HeartbeatWorker extends Thread {
         logger.info("Started HeartbeatWorker [{}]", identity);
         while (!isInterrupted()) {
             try {
-                int clientEpoch = 0;
-                String clientId = null;
+                int sourceEpoch = 0;
+                String sourceClientId = null;
                 try {
-                    clientEpoch = serverEpoch;
-                    clientId = serverId;
-                    final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(clientEpoch).setClientId(clientId).build();
+                    sourceEpoch = serverEpoch;
+                    sourceClientId = serverId;
+                    final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(sourceEpoch).setClientId(sourceClientId)
+                            .build();
                     final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatMessage);
                     logger.info("heartbeat::[request[id:{}, epoch:{}], response[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                             heartbeatMessage.getClientEpoch(),
                             heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
                     heartbeatSuccesses++;
                 } catch (Throwable heartbeatProblem) {
-                    logger.error("heartbeat::[request[id:{}, epoch:{}], response[{}]]", clientId, clientEpoch, heartbeatProblem);
+                    logger.error("heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
                     heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);

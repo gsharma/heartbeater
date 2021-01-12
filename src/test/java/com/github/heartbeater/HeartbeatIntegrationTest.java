@@ -258,7 +258,7 @@ public final class HeartbeatIntegrationTest {
     public void testUnresponsivePeer() throws Exception {
         System.setProperty("heartbeatservice.expireheartbeatdeadline", "true");
         HeartbeatServer leaderServer = null;
-        HeartbeatServer followerServerOne = null;
+        HeartbeatServer unresponsivePeer = null;
         HeartbeatClient clientToLeader = null;
         try {
             // 1. setup and start leaderServer: leaderServer is alive
@@ -274,38 +274,39 @@ public final class HeartbeatIntegrationTest {
             leaderServer.start();
             assertTrue(leaderServer.isRunning());
 
-            // 2. setup and start followerServerOne: followerServerOne is alive
-            final String followerServerOneHost = "127.0.0.1";
-            final int followerServerOnePort = 7001;
-            final int followerServerOneWorkerCount = 1;
-            final int followerServerOneEpoch = 1;
+            // 2. setup and start unresponsivePeer: unresponsivePeer is alive
+            final String unresponsivePeerHost = "127.0.0.1";
+            final int unresponsivePeerPort = 7001;
+            final int unresponsivePeerWorkerCount = 1;
+            final int unresponsivePeerEpoch = 1;
 
-            followerServerOne = HeartbeatServerBuilder.newBuilder().serverHost(followerServerOneHost).serverPort(followerServerOnePort)
-                    .workerCount(followerServerOneWorkerCount).serverEpoch(followerServerOneEpoch).build();
-            followerServerOne.start();
-            assertTrue(followerServerOne.isRunning());
+            unresponsivePeer = HeartbeatServerBuilder.newBuilder().serverHost(unresponsivePeerHost).serverPort(unresponsivePeerPort)
+                    .workerCount(unresponsivePeerWorkerCount).serverEpoch(unresponsivePeerEpoch).build();
+            unresponsivePeer.start();
+            assertTrue(unresponsivePeer.isRunning());
 
             // 3. setup and start clientToLeader: clientToLeader is alive
             clientToLeader = HeartbeatClient.getClient(leaderServerHost, leaderServerPort, leaderServerDeadlineMillis, 1);
             clientToLeader.start();
             assertTrue(clientToLeader.isRunning());
 
-            // 4. call registerPeer(followerServerOne) on clientToLeader of leaderServer: leaderServer->followerServerOne heartbeating starts
-            final RegisterPeerRequest registerFollowerOneWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerOneHost)
-                    .setPeerPort(followerServerOnePort).setPeerId(followerServerOne.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+            // 4. call registerPeer(unresponsivePeer) on clientToLeader of leaderServer: leaderServer->unresponsivePeer heartbeating starts
+            final RegisterPeerRequest registerUnresponsivePeerWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(unresponsivePeerHost)
+                    .setPeerPort(unresponsivePeerPort).setPeerId(unresponsivePeer.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
                     .build();
-            final RegisterPeerResponse registerFollowerOneWithLeaderResponse = clientToLeader.registerPeer(registerFollowerOneWithLeaderRequest);
-            assertNotNull(registerFollowerOneWithLeaderResponse);
+            final RegisterPeerResponse registerUnresponsivePeerWithLeaderResponse = clientToLeader
+                    .registerPeer(registerUnresponsivePeerWithLeaderRequest);
+            assertNotNull(registerUnresponsivePeerWithLeaderResponse);
 
             // 5. wait for a few heartbeats to go through
             LockSupport.parkNanos(TimeUnit.NANOSECONDS.convert(heartbeatFreqMillis * 10, TimeUnit.MILLISECONDS));
 
-            // 6. call deregisterPeer(followerServerOne) on clientToLeader of leaderServer: leaderServer->followerServerOne heartbeating stops
-            final DeregisterPeerRequest deregisterFollowerOneWithLeaderRequest = DeregisterPeerRequest.newBuilder()
-                    .setPeerId(followerServerOne.getIdentity()).build();
-            final DeregisterPeerResponse deregisterFollowerOneWithLeaderResponse = clientToLeader
-                    .deregisterPeer(deregisterFollowerOneWithLeaderRequest);
-            assertNotNull(deregisterFollowerOneWithLeaderResponse);
+            // 6. call deregisterPeer(unresponsivePeer) on clientToLeader of leaderServer: leaderServer->unresponsivePeer heartbeating stops
+            final DeregisterPeerRequest deregisterUnresponsivePeerWithLeaderRequest = DeregisterPeerRequest.newBuilder()
+                    .setPeerId(unresponsivePeer.getIdentity()).build();
+            final DeregisterPeerResponse deregisterUnresponsivePeerWithLeaderResponse = clientToLeader
+                    .deregisterPeer(deregisterUnresponsivePeerWithLeaderRequest);
+            assertNotNull(deregisterUnresponsivePeerWithLeaderResponse);
         } finally {
             System.setProperty("heartbeatservice.expireheartbeatdeadline", "false");
             // n. shut e'thing down
@@ -317,9 +318,9 @@ public final class HeartbeatIntegrationTest {
                 leaderServer.stop();
                 assertFalse(leaderServer.isRunning());
             }
-            if (followerServerOne != null) {
-                followerServerOne.stop();
-                assertFalse(followerServerOne.isRunning());
+            if (unresponsivePeer != null) {
+                unresponsivePeer.stop();
+                assertFalse(unresponsivePeer.isRunning());
             }
         }
     }
