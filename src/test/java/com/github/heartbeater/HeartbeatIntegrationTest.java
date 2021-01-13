@@ -46,7 +46,7 @@ public final class HeartbeatIntegrationTest {
             final String serverOneHost = "127.0.0.1";
             final int serverOnePort = 8181;
             final int heartbeatFreqMillis = 5;
-            final int serverOneDeadlineMillis = heartbeatFreqMillis * 100;
+            final int serverOneDeadlineMillis = 1000;
             final int serverOneWorkerCount = 1;
             final int clientOneWorkerCount = 1;
             final int serverOneEpoch = 2;
@@ -64,7 +64,7 @@ public final class HeartbeatIntegrationTest {
             // 3. setup and start serverTwo: serverTwo is alive
             final String serverTwoHost = "127.0.0.1";
             final int serverTwoPort = 8484;
-            final int serverTwoDeadlineMillis = heartbeatFreqMillis * 100;
+            final int serverTwoDeadlineMillis = 1000;
             final int serverTwoWorkerCount = 1;
             final int clientTwoWorkerCount = 1;
             final int serverTwoEpoch = 3;
@@ -138,7 +138,7 @@ public final class HeartbeatIntegrationTest {
             final String leaderServerHost = "127.0.0.1";
             final int leaderServerPort = 8181;
             final int heartbeatFreqMillis = 5;
-            final int leaderServerDeadlineMillis = heartbeatFreqMillis * 100;
+            final int leaderServerDeadlineMillis = 1000;
             final int leaderServerWorkerCount = 1;
             final int leaderServerEpoch = 5;
 
@@ -265,7 +265,7 @@ public final class HeartbeatIntegrationTest {
             final String leaderServerHost = "127.0.0.1";
             final int leaderServerPort = 8181;
             final int heartbeatFreqMillis = 10;
-            final int leaderServerDeadlineMillis = heartbeatFreqMillis * 100;
+            final int leaderServerDeadlineMillis = 1000;
             final int leaderServerWorkerCount = 1;
             final int leaderServerEpoch = 5;
 
