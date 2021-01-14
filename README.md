@@ -1,5 +1,5 @@
 # Heartbeater
-The heartbeater is a module responsible for maintaining heartbeats between peer processes on the same or on remote machines. It provides a very simple api and can act as both the client as well as the server to send and receive heartbeats.
+The heartbeater is a module responsible for maintaining heartbeats between peer processes on the same or on remote machines. It provides a simple api and can act as both the client as well as the server to send and receive heartbeats.
 
 ## Client API Reference
 ```java
@@ -104,3 +104,6 @@ The heartbeater is a module responsible for maintaining heartbeats between peer 
 
 ## Persistence
 Heartbeater uses rocksdb as a local cache for persistence of its peer registry.
+
+## HowTo Build
+mvn clean install
