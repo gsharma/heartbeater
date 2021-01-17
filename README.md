@@ -1,5 +1,5 @@
 # Heartbeater
-The heartbeater is a module responsible for maintaining heartbeats between peer processes on the same or on remote machines. It provides a simple api and can act as both the client as well as the server to send and receive heartbeats.
+The heartbeater is a module responsible for maintaining heartbeats between peer processes on the same or on remote machines. It provides a simple api and can act as both the client as well as the server to send and receive heartbeats. Heartbeat transmission frequency is not fixed but is configurable for all senders.
 
 ## Client API Reference
 ```java
