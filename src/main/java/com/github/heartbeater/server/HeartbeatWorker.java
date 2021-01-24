@@ -21,8 +21,6 @@ final class HeartbeatWorker extends Thread {
     private final int serverEpoch;
 
     private final long runIntervalMillis;
-    private final String peerHost;
-    private final int peerPort;
     private final HeartbeatClient client;
 
     private long heartbeatSuccesses, heartbeatFailures;
@@ -35,8 +33,6 @@ final class HeartbeatWorker extends Thread {
         this.serverEpoch = serverEpoch;
 
         this.runIntervalMillis = runIntervalMillis;
-        this.peerHost = peerHost;
-        this.peerPort = peerPort;
 
         final int clientWorkerCount = 1;
         client = HeartbeatClient.getClient(peerHost, peerPort, serverDeadlineMillis, clientWorkerCount);
@@ -75,7 +71,7 @@ final class HeartbeatWorker extends Thread {
                             heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
                     heartbeatSuccesses++;
                 } catch (Throwable heartbeatProblem) {
-                    logger.error("heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
+                    logger.error("Failed heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
                     heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);
