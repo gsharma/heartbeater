@@ -68,6 +68,7 @@ public final class HeartbeatIntegrationTest {
             final int serverTwoWorkerCount = 1;
             final int clientTwoWorkerCount = 1;
             final int serverTwoEpoch = 3;
+            final int lastHeartbeatsToTrack = 100;
 
             serverTwo = HeartbeatServerBuilder.newBuilder().serverHost(serverTwoHost).serverPort(serverTwoPort)
                     .workerCount(serverTwoWorkerCount).serverEpoch(serverTwoEpoch).build();
@@ -81,13 +82,15 @@ public final class HeartbeatIntegrationTest {
 
             // 5. call registerPeer(serverTwo) on clientOne of serverOne: serverOne->serverTwo heartbeating starts
             final RegisterPeerRequest registerPeerTwoWithServerOneRequest = RegisterPeerRequest.newBuilder().setPeerHost(serverTwoHost)
-                    .setPeerPort(serverTwoPort).setPeerId(serverTwo.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis).build();
+                    .setPeerPort(serverTwoPort).setPeerId(serverTwo.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerPeerTwoWithServerOneResponse = clientOne.registerPeer(registerPeerTwoWithServerOneRequest);
             assertNotNull(registerPeerTwoWithServerOneResponse);
 
             // 6. call registerPeer(serverOne) on clientTwo of serverTwo: serverTwo->serverOne heartbeating starts
             final RegisterPeerRequest registerPeerOneWithServerTwoRequest = RegisterPeerRequest.newBuilder().setPeerHost(serverOneHost)
-                    .setPeerPort(serverOnePort).setPeerId(serverOne.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis).build();
+                    .setPeerPort(serverOnePort).setPeerId(serverOne.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerPeerOneWithServerTwoResponse = clientTwo.registerPeer(registerPeerOneWithServerTwoRequest);
             assertNotNull(registerPeerOneWithServerTwoResponse);
 
@@ -141,6 +144,7 @@ public final class HeartbeatIntegrationTest {
             final int leaderServerDeadlineMillis = 1000;
             final int leaderServerWorkerCount = 1;
             final int leaderServerEpoch = 5;
+            final int lastHeartbeatsToTrack = 100;
 
             leaderServer = HeartbeatServerBuilder.newBuilder().serverHost(leaderServerHost).serverPort(leaderServerPort)
                     .workerCount(leaderServerWorkerCount).serverEpoch(leaderServerEpoch).build();
@@ -188,21 +192,21 @@ public final class HeartbeatIntegrationTest {
             // 6. call registerPeer(followerServerOne) on clientToLeader of leaderServer: leaderServer->followerServerOne heartbeating starts
             final RegisterPeerRequest registerFollowerOneWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerOneHost)
                     .setPeerPort(followerServerOnePort).setPeerId(followerServerOne.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
-                    .build();
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerFollowerOneWithLeaderResponse = clientToLeader.registerPeer(registerFollowerOneWithLeaderRequest);
             assertNotNull(registerFollowerOneWithLeaderResponse);
 
             // 7. call registerPeer(followerServerTwo) on clientToLeader of leaderServer: leaderServer->followerServerTwo heartbeating starts
             final RegisterPeerRequest registerFollowerTwoWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerTwoHost)
                     .setPeerPort(followerServerTwoPort).setPeerId(followerServerTwo.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
-                    .build();
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerFollowerTwoWithLeaderResponse = clientToLeader.registerPeer(registerFollowerTwoWithLeaderRequest);
             assertNotNull(registerFollowerTwoWithLeaderResponse);
 
             // 8. call registerPeer(followerServerThree) on clientToLeader of leaderServer: leaderServer->followerServerThree heartbeating starts
             final RegisterPeerRequest registerFollowerThreeWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(followerServerThreeHost)
                     .setPeerPort(followerServerThreePort).setPeerId(followerServerThree.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
-                    .build();
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerFollowerThreeWithLeaderResponse = clientToLeader.registerPeer(registerFollowerThreeWithLeaderRequest);
             assertNotNull(registerFollowerThreeWithLeaderResponse);
 
@@ -268,6 +272,7 @@ public final class HeartbeatIntegrationTest {
             final int leaderServerDeadlineMillis = 1000;
             final int leaderServerWorkerCount = 1;
             final int leaderServerEpoch = 5;
+            final int lastHeartbeatsToTrack = 100;
 
             leaderServer = HeartbeatServerBuilder.newBuilder().serverHost(leaderServerHost).serverPort(leaderServerPort)
                     .workerCount(leaderServerWorkerCount).serverEpoch(leaderServerEpoch).build();
@@ -293,7 +298,7 @@ public final class HeartbeatIntegrationTest {
             // 4. call registerPeer(unresponsivePeer) on clientToLeader of leaderServer: leaderServer->unresponsivePeer heartbeating starts
             final RegisterPeerRequest registerUnresponsivePeerWithLeaderRequest = RegisterPeerRequest.newBuilder().setPeerHost(unresponsivePeerHost)
                     .setPeerPort(unresponsivePeerPort).setPeerId(unresponsivePeer.getIdentity()).setHeartbeatFreqMillis(heartbeatFreqMillis)
-                    .build();
+                    .setLastHeartbeatsToTrack(lastHeartbeatsToTrack).build();
             final RegisterPeerResponse registerUnresponsivePeerWithLeaderResponse = clientToLeader
                     .registerPeer(registerUnresponsivePeerWithLeaderRequest);
             assertNotNull(registerUnresponsivePeerWithLeaderResponse);

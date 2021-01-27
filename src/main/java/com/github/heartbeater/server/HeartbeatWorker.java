@@ -1,5 +1,6 @@
 package com.github.heartbeater.server;
 
+import java.util.BitSet;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,16 +24,20 @@ final class HeartbeatWorker extends Thread {
     private final long runIntervalMillis;
     private final HeartbeatClient client;
 
+    private final int lastHeartbeatsToTrack;
+    private final BitSet lastHeartbeatStatuses;
     private long heartbeatSuccesses, heartbeatFailures;
 
     HeartbeatWorker(final String serverId, final int serverEpoch, final long runIntervalMillis, final String peerHost, final int peerPort,
-            final int serverDeadlineMillis) {
+            final int serverDeadlineMillis, final int lastHeartbeatsToTrack) {
         setDaemon(true);
         setName("heartbeater-" + identity);
         this.serverId = serverId;
         this.serverEpoch = serverEpoch;
 
         this.runIntervalMillis = runIntervalMillis;
+        this.lastHeartbeatsToTrack = lastHeartbeatsToTrack;
+        this.lastHeartbeatStatuses = new BitSet(lastHeartbeatsToTrack);
 
         final int clientWorkerCount = 1;
         client = HeartbeatClient.getClient(peerHost, peerPort, serverDeadlineMillis, clientWorkerCount);
@@ -42,6 +47,10 @@ final class HeartbeatWorker extends Thread {
 
     String getIdentity() {
         return identity;
+    }
+
+    BitSet getLastHeartbeatStatuses() {
+        return lastHeartbeatStatuses;
     }
 
     @Override
@@ -55,6 +64,7 @@ final class HeartbeatWorker extends Thread {
                 return;
             }
         }
+        int heartbeatCounter = 0;
         logger.info("Started HeartbeatWorker [{}]", identity);
         while (!isInterrupted()) {
             try {
@@ -65,13 +75,16 @@ final class HeartbeatWorker extends Thread {
                     sourceClientId = serverId;
                     final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(sourceEpoch).setClientId(sourceClientId)
                             .build();
+                    heartbeatCounter = heartbeatCounter++ % lastHeartbeatsToTrack;
                     final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatMessage);
                     logger.info("heartbeat::[request[id:{}, epoch:{}], response[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                             heartbeatMessage.getClientEpoch(),
                             heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
+                    lastHeartbeatStatuses.set(heartbeatCounter, true);
                     heartbeatSuccesses++;
                 } catch (Throwable heartbeatProblem) {
                     logger.error("Failed heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
+                    lastHeartbeatStatuses.set(heartbeatCounter, false);
                     heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);

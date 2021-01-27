@@ -106,13 +106,14 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
                 final String peerServerId = request.getPeerId();
                 final int heartbeatFreqMillis = request.getHeartbeatFreqMillis();
                 final int serverDeadlineMillis = heartbeatFreqMillis * 2;
+                final int lastHeartbeatsToTrack = request.getLastHeartbeatsToTrack();
 
                 if (!heartbeatWorkers.containsKey(peerServerId)) {
                     persister.savePeer(peerServerId, peerHost, peerPort);
 
                     final long runIntervalMillis = Math.max(heartbeatFreqMillis, 5L);
                     final HeartbeatWorker heartbeatWorker = new HeartbeatWorker(serverId, serverEpoch, runIntervalMillis, peerHost, peerPort,
-                            serverDeadlineMillis);
+                            serverDeadlineMillis, lastHeartbeatsToTrack);
                     heartbeatWorkers.put(peerServerId, heartbeatWorker);
                 } else {
                     logger.warn("{} is an already registered peer", peerServerId);
