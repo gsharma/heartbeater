@@ -37,11 +37,13 @@ final class HeartbeatWorker extends Thread {
 
         this.runIntervalMillis = runIntervalMillis;
         this.lastHeartbeatsToTrack = lastHeartbeatsToTrack;
-        this.lastHeartbeatStatuses = new BitSet(lastHeartbeatsToTrack);
+        this.lastHeartbeatStatuses = new BitSet();
 
         final int clientWorkerCount = 1;
         client = HeartbeatClient.getClient(peerHost, peerPort, serverDeadlineMillis, clientWorkerCount);
 
+        logger.info("Starting HeartbeatWorker [{}], serverId:{}, serverEpoch:{}, runIntervalMillis:{}, lastHeartbeatsToTrack:{}", identity, serverId,
+                serverEpoch, runIntervalMillis, lastHeartbeatsToTrack);
         start();
     }
 
@@ -75,16 +77,18 @@ final class HeartbeatWorker extends Thread {
                     sourceClientId = serverId;
                     final HeartbeatMessage heartbeatMessage = HeartbeatMessage.newBuilder().setClientEpoch(sourceEpoch).setClientId(sourceClientId)
                             .build();
-                    heartbeatCounter = heartbeatCounter++ % lastHeartbeatsToTrack;
+                    heartbeatCounter = ++heartbeatCounter % lastHeartbeatsToTrack;
                     final HeartbeatResponse heartbeatResponse = client.heartbeat(heartbeatMessage);
                     logger.info("heartbeat::[request[id:{}, epoch:{}], response[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                             heartbeatMessage.getClientEpoch(),
                             heartbeatResponse.getServerId(), heartbeatResponse.getServerEpoch());
                     lastHeartbeatStatuses.set(heartbeatCounter, true);
+                    logger.info("counter:{}, {}", heartbeatCounter, lastHeartbeatStatuses.get(heartbeatCounter));
                     heartbeatSuccesses++;
                 } catch (Throwable heartbeatProblem) {
                     logger.error("Failed heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
                     lastHeartbeatStatuses.set(heartbeatCounter, false);
+                    logger.info("counter:{}, {}", heartbeatCounter, lastHeartbeatStatuses.get(heartbeatCounter));
                     heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);
@@ -101,6 +105,7 @@ final class HeartbeatWorker extends Thread {
             }
         }
         logger.info("Stopped HeartbeatWorker [{}], heartbeats::[successes:{}, failures:{}]", identity, heartbeatSuccesses, heartbeatFailures);
+        logger.info("Stopped HeartbeatWorker [{}], recentHeartbeats::{}", identity, lastHeartbeatStatuses.size());
     }
 
 }
