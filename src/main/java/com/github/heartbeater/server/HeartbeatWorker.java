@@ -85,14 +85,14 @@ final class HeartbeatWorker extends Thread {
                     lastHeartbeatStatuses.set(heartbeatCounter, true);
                     logger.info("counter:{}, {}", heartbeatCounter, lastHeartbeatStatuses.get(heartbeatCounter));
                     heartbeatSuccesses++;
-                } catch (Throwable heartbeatProblem) {
-                    logger.error("Failed heartbeat::[request[id:{}, epoch:{}], response[{}]]", sourceClientId, sourceEpoch, heartbeatProblem);
+                } catch (final Throwable heartbeatProblem) {
+                    logger.error(String.format("Failed heartbeat::[request[id:%s, epoch:%s]]", sourceClientId, sourceEpoch), heartbeatProblem);
                     lastHeartbeatStatuses.set(heartbeatCounter, false);
                     logger.info("counter:{}, {}", heartbeatCounter, lastHeartbeatStatuses.get(heartbeatCounter));
                     heartbeatFailures++;
                 }
                 sleep(runIntervalMillis);
-            } catch (InterruptedException interrupted) {
+            } catch (final InterruptedException interrupted) {
                 break;
             }
         }

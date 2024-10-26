@@ -54,6 +54,7 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
     public void heartbeat(final HeartbeatMessage request,
             final StreamObserver<HeartbeatResponse> responseObserver) {
         try {
+            logger.debug("Received {}", request);
             final String clientId = request.getClientId();
             Set<Heartbeat> heartbeats = heartbeatsReceived.get(clientId);
             if (heartbeats == null) {
@@ -71,7 +72,10 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
                     }
                 });
                 logger.info("Setting up to receive first heartbeat for {}", clientId);
-                heartbeatsReceived.putIfAbsent(clientId, heartbeats);
+                final Set<Heartbeat> previousValue = heartbeatsReceived.putIfAbsent(clientId, heartbeats);
+                if (previousValue != null) {
+                    logger.warn("Another thread won the race to init heartbeats set for {}", clientId);
+                }
             }
 
             final int clientEpoch = request.getClientEpoch();
@@ -200,6 +204,9 @@ final class HeartbeatServiceImpl extends HeartbeatServiceImplBase implements Lif
             }
             if (persister.isRunning()) {
                 persister.stop();
+            }
+            for (final Map.Entry<String, Set<Heartbeat>> entry : heartbeatsReceived.entrySet()) {
+                logger.info("[client[id:{}, totalHeartbeats:{}]", entry.getKey(), entry.getValue() != null ? entry.getValue().size() : 0);
             }
             heartbeatWorkers.clear();
             for (final Set<Heartbeat> heartbeats : heartbeatsReceived.values()) {

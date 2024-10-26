@@ -133,10 +133,10 @@ final class HeartbeatClientImpl implements HeartbeatClient {
         HeartbeatResponse response = null;
         try {
             response = serviceStub.heartbeat(heartbeatMessage);
-            logger.debug("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
+            logger.info("heartbeat::[client[id:{}, epoch:{}], server[id:{}, epoch:{}]]", heartbeatMessage.getClientId(),
                     heartbeatMessage.getClientEpoch(),
                     response.getServerId(), response.getServerEpoch());
-        } catch (Throwable problem) {
+        } catch (final Throwable problem) {
             toHeartbeatClientException(problem);
         }
         return response;

@@ -44,7 +44,7 @@ public final class HeartbeatIntegrationTest {
         try {
             // 1. setup and start serverOne: serverOne is alive
             final String serverOneHost = "127.0.0.1";
-            final int serverOnePort = 8181;
+            final int serverOnePort = 8081;
             final int heartbeatFreqMillis = 5;
             final int serverOneDeadlineMillis = 1000;
             final int serverOneWorkerCount = 1;
@@ -63,12 +63,11 @@ public final class HeartbeatIntegrationTest {
 
             // 3. setup and start serverTwo: serverTwo is alive
             final String serverTwoHost = "127.0.0.1";
-            final int serverTwoPort = 8484;
+            final int serverTwoPort = 8400;
             final int serverTwoDeadlineMillis = 1000;
             final int serverTwoWorkerCount = 1;
             final int clientTwoWorkerCount = 1;
             final int serverTwoEpoch = 3;
-            final int lastHeartbeatsToTrack = 100;
 
             serverTwo = HeartbeatServerBuilder.newBuilder().serverHost(serverTwoHost).serverPort(serverTwoPort)
                     .workerCount(serverTwoWorkerCount).serverEpoch(serverTwoEpoch).build();
@@ -79,6 +78,8 @@ public final class HeartbeatIntegrationTest {
             clientTwo = HeartbeatClient.getClient(serverTwoHost, serverTwoPort, serverTwoDeadlineMillis, clientTwoWorkerCount);
             clientTwo.start();
             assertTrue(clientTwo.isRunning());
+
+            final int lastHeartbeatsToTrack = 100;
 
             // 5. call registerPeer(serverTwo) on clientOne of serverOne: serverOne->serverTwo heartbeating starts
             final RegisterPeerRequest registerPeerTwoWithServerOneRequest = RegisterPeerRequest.newBuilder().setPeerHost(serverTwoHost)
